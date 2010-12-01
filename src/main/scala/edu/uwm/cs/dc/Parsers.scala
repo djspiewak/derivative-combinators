@@ -66,13 +66,13 @@ trait Parsers {
     override def toString = "<union>"
   }
   
-  class ConcatParser(_left: =>Parser, _right: =>Parser) extends Parser with MemoizedDerivation {
+  class ConcatParser(_left: =>Parser, _right: =>Parser) extends Parser {
     lazy val left = _left
     lazy val right = _right
     
     lazy val isNullable = left.isNullable && right.isNullable
     
-    def innerDerive(c: Char) = {
+    def derive(c: Char) = {
       val leftPotential = left derive c
       lazy val rightPotential = right derive c
       
