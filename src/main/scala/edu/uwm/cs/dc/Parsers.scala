@@ -43,14 +43,15 @@ trait Parsers {
     lazy val isNullable = left.isNullable || right.isNullable
     
     def innerDerive(c: Char) = {
+      val leftPotential = left derive c
       val rightPotential = right derive c
       
-      val result = for {
-        ld <- left derive c
+      val combinedPotential = for {
+        ld <- leftPotential
         rd <- rightPotential
       } yield ld | rd
       
-      result orElse rightPotential
+      combinedPotential orElse leftPotential orElse rightPotential
     }
   }
   
