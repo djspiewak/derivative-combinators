@@ -7,6 +7,8 @@ trait Parsers {
     val isNullable = true
     
     def derive(c: Char) = None
+    
+    override def toString = "<>"
   }
   
   implicit def literal(c: Char): Parser = LiteralParser(c)
@@ -53,13 +55,14 @@ trait Parsers {
       
       combinedPotential orElse leftPotential orElse rightPotential
     }
+    
+    override def toString = "<union>"
   }
   
   class ConcatParser(_left: =>Parser, _right: =>Parser) extends Parser with MemoizedDerivation {
     lazy val left = _left
     lazy val right = _right
     
-    lazy val isNullable = !left.isNullable || right.isNullable
     lazy val isNullable = left.isNullable && right.isNullable
     
     def innerDerive(c: Char) = {
@@ -79,6 +82,8 @@ trait Parsers {
         concatPotential
       }
     }
+    
+    override def toString = left.toString + " ~ " + right.toString
   }
   
   case class LiteralParser(c: Char) extends Parser {
@@ -86,6 +91,8 @@ trait Parsers {
     
     def derive(c: Char) =
       if (this.c == c) Some(epsilon) else None
+    
+    override def toString = c.toString
   }
   
   trait MemoizedDerivation extends Parser {
