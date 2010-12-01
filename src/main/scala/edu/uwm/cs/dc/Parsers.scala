@@ -6,9 +6,19 @@ trait Parsers {
   val epsilon: Parser = new Parser {
     val isNullable = true
     
-    def derive(c: Char) = None
+    def derive(c: Char) = empty
     
     override def toString = "<>"
+  }
+  
+  private val empty = new Parser {
+    val isNullable = false
+    
+    def derive(c: Char) = error("Cannot derive the empty parser")
+    
+    override def ~(that: =>Parser) = this
+    
+    override def toString = "Ø"
   }
   
   implicit def literal(c: Char): Parser = LiteralParser(c)
@@ -26,11 +36,10 @@ trait Parsers {
   trait Parser extends (Stream[Char] => Boolean) {
     def isNullable: Boolean
     
-    def derive(c: Char): Option[Parser]
+    def derive(c: Char): Parser
     
     def apply(str: Stream[Char]) = str match {
-      case hd #:: tail => 
-        derive(hd) map { _(tail) } getOrElse false
+      case hd #:: tail => derive(hd)(tail)
       
       case Stream() => isNullable
     }
@@ -59,15 +68,14 @@ trait Parsers {
     }
     
     def innerDerive(c: Char) = {
-      val leftPotential = left derive c
-      val rightPotential = right derive c
-      
-      val combinedPotential = for {
-        ld <- leftPotential
-        rd <- rightPotential
-      } yield ld | rd
-      
-      combinedPotential orElse leftPotential orElse rightPotential
+      if (left == empty && right == empty)
+        empty
+      else if (left == empty)
+        right.derive(c)
+      else if (right == empty)
+        left.derive(c)
+      else
+        left.derive(c) | right.derive(c)
     }
     
     override def toString = "<union>"
@@ -77,24 +85,13 @@ trait Parsers {
     lazy val left = _left
     lazy val right = _right
     
-    lazy val isNullable = left.isNullable && right.isNullable
+    def isNullable = left.isNullable && right.isNullable
     
     def derive(c: Char) = {
-      val leftPotential = left derive c
-      lazy val rightPotential = right derive c
-      
-      val concatPotential = leftPotential map { _ ~ right }
-      
-      if (left.isNullable) {
-        val combinedPotential = for {
-          lc <- concatPotential
-          rd <- rightPotential
-        } yield lc | rd
-        
-        combinedPotential orElse concatPotential orElse rightPotential
-      } else {
-        concatPotential
-      }
+      if (left.isNullable)
+        left.derive(c) ~ right | right.derive(c)
+      else
+        left.derive(c) ~ right
     }
     
     override def toString = left.toString + " ~ " + right.toString
@@ -104,23 +101,21 @@ trait Parsers {
     val isNullable = false
     
     def derive(c: Char) =
-      if (this.c == c) Some(epsilon) else None
+      if (this.c == c) epsilon else empty
     
     override def toString = c.toString
   }
   
   trait MemoizedDerivation extends Parser {
-    private val derivations = mutable.Map[Char, Option[Parser]]()
+    private val derivations = mutable.Map[Char, Parser]()
     
     final def derive(c: Char) = derivations get c getOrElse {
-      derivations += (c -> None)
-      
       val back = innerDerive(c)
       derivations(c) = back
       
       back
     }
     
-    protected def innerDerive(c: Char): Option[Parser]
+    protected def innerDerive(c: Char): Parser
   }
 }
