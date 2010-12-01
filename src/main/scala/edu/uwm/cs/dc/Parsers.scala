@@ -42,7 +42,14 @@ trait Parsers {
     lazy val left = _left
     lazy val right = _right
     
-    lazy val isNullable = left.isNullable || right.isNullable
+    private var _isNullable: Option[Boolean] = None
+    
+    def isNullable = _isNullable getOrElse {
+      _isNullable = Some(false)
+      val back = left.isNullable || right.isNullable
+      _isNullable = Some(back)
+      back
+    }
     
     def innerDerive(c: Char) = {
       val leftPotential = left derive c
