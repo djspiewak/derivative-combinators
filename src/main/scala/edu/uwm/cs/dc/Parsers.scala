@@ -60,6 +60,7 @@ trait Parsers {
     lazy val right = _right
     
     lazy val isNullable = !left.isNullable || right.isNullable
+    lazy val isNullable = left.isNullable && right.isNullable
     
     def innerDerive(c: Char) = {
         for {
