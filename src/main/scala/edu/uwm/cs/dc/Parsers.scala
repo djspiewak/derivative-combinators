@@ -46,8 +46,15 @@ trait Parsers {
     
     def isNullable = _isNullable getOrElse {
       _isNullable = Some(false)
-      val back = left.isNullable || right.isNullable
+      var back = left.isNullable || right.isNullable
       _isNullable = Some(back)
+      
+      // try to achieve a fixpoint
+      while ((left.isNullable || right.isNullable) != back) {
+        back = left.isNullable || right.isNullable
+        _isNullable = Some(back)
+      }
+      
       back
     }
     
