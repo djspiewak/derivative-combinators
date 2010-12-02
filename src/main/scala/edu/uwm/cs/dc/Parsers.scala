@@ -8,7 +8,7 @@ trait Parsers {
     
     def derive(c: Char) = empty
     
-    override def toString = "<>"
+    def innerToString(visited: Set[Parser]) = ("<>", visited)
   }
   
   private val empty = new Parser {
@@ -18,7 +18,7 @@ trait Parsers {
     
     override def ~(that: =>Parser) = this
     
-    override def toString = "Ø"
+    def innerToString(visited: Set[Parser]) = ("{}", visited)
   }
   
   implicit def literal(c: Char): Parser = LiteralParser(c)
@@ -45,6 +45,10 @@ trait Parsers {
     }
     
     def ~(that: =>Parser): Parser = new ConcatParser(this, that)
+    
+    override def toString = innerToString(Set())._1
+    
+    def innerToString(visited: Set[Parser]): (String, Set[Parser])
   }
   
   class UnionParser(_left: =>Parser, _right: =>Parser) extends Parser with MemoizedDerivation {
@@ -78,7 +82,15 @@ trait Parsers {
         left.derive(c) | right.derive(c)
     }
     
-    override def toString = "<union>"
+    def innerToString(visited: Set[Parser]) = {
+      if (visited contains this)
+        (hashCode.toString, visited)
+      else {
+        val (leftStr, leftVisit) = left.innerToString(visited + this)
+        val (rightStr, rightVisit) = right.innerToString(leftVisit)
+        ("(| " + leftStr + " " + rightStr + ")", rightVisit)
+      }
+    }
   }
   
   class ConcatParser(_left: =>Parser, _right: =>Parser) extends Parser {
@@ -94,7 +106,11 @@ trait Parsers {
         left.derive(c) ~ right
     }
     
-    override def toString = left.toString + " ~ " + right.toString
+    def innerToString(visited: Set[Parser]) = {
+      val (leftStr, leftVisited) = left.innerToString(visited)
+      val (rightStr, rightVisited) = right.innerToString(visited)
+      ("(~ " + leftStr + " " + rightStr + ")", rightVisited)
+    }
   }
   
   case class LiteralParser(c: Char) extends Parser {
@@ -103,7 +119,7 @@ trait Parsers {
     def derive(c: Char) =
       if (this.c == c) epsilon else empty
     
-    override def toString = c.toString
+    def innerToString(visited: Set[Parser]) = (c.toString, visited)
   }
   
   trait MemoizedDerivation extends Parser {
